@@ -293,7 +293,11 @@ async function handleSchoolAction(req,res){
     const studentId=Number(b.studentId),absent=!!b.absent;if(!studentId)err(400,"Élève invalide.");
     const stRef=db.doc("students/"+studentId),stSnap=await stRef.get();if(!stSnap.exists)err(404,"Élève introuvable.");
     const st=stSnap.data();
-    if(token.role==="PARENT"&&st.guardian_key!==token.guardianKey)err(403,"Cet enfant n’est pas lié à votre compte.");
+    if(token.role==="PARENT"){
+      if(st.guardian_key!==token.guardianKey)err(403,"Cet enfant n’est pas lié à votre compte.");
+      const gSnap=await db.doc("guardians/"+String(token.guardianKey||"")).get();
+      if(!gSnap.exists||Number(gSnap.data().session_version||1)!==Number(token.sessionVersion||1))err(401,"Session parent expirée. Reconnectez-vous.");
+    }
     await stRef.set({absence_today:absent,updated_at:FieldValue.serverTimestamp()},{merge:true});
     const today=gabonDateKey(),ref=db.doc("boardings/"+today+"_"+studentId+"_MATIN");
     if(absent)await ref.set({student_id:studentId,service_date:today,leg:"MATIN",status:"ABSENT",updated_at:FieldValue.serverTimestamp()},{merge:true});
