@@ -1,0 +1,1 @@
+DELETE FROM school_drivers WHERE id IN (3,4)
