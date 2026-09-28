@@ -1,0 +1,1 @@
+UPDATE school_runs SET driver_id=NULL,status='NON_ASSIGNE',checklist='{}'::jsonb,boarded=0,stage=0,departed_at=NULL,arrived_at=NULL,updated_at=now()
