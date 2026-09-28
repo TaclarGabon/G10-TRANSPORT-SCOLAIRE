@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS school_zones (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL UNIQUE,
+  active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+INSERT INTO school_zones(name) VALUES ('Akanda') ON CONFLICT(name) DO NOTHING;
+INSERT INTO school_zones(name) VALUES ('Owendo') ON CONFLICT(name) DO NOTHING;
