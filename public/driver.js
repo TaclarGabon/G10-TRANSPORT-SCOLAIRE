@@ -266,11 +266,12 @@ window.driverLogin=async()=>{
     G10.driverSession={driverId,busId:Number(run.bus_id),sessionVersion:Number(authOut.sessionVersion)};
     const out=await G10.api("/driver-action",{method:"POST",body:JSON.stringify({busId:Number(run.bus_id),action:"LOGIN"})});
     G10.driverSession.sessionVersion=Number(out.sessionVersion||authOut.sessionVersion);
+    sessionStorage.setItem("g10_school_driver_session",JSON.stringify(G10.driverSession));
     G10.applyDriverNav();
     await G10.loadState();G10.toast("Connexion réussie");
-  }catch(e){G10.driverSession=null;await G10Firebase.auth.signOut().catch(()=>{});G10.toast(e.message)}
+  }catch(e){G10.driverSession=null;sessionStorage.removeItem("g10_school_driver_session");G10.toast(e.message)}
 };
-window.driverLogout=async()=>{G10.driverSession=null;await G10Firebase.auth.signOut().catch(()=>{});G10.applyDriverNav();await G10.loadState(true);renderDriver()};
+window.driverLogout=async()=>{G10.driverSession=null;sessionStorage.removeItem("g10_school_driver_session");G10.applyDriverNav();await G10.loadState(true);renderDriver()};
 window.ackDriverWarning=async warningId=>{
   try{
     await G10.api("/driver-action",{method:"POST",body:JSON.stringify({...G10.driverSession,action:"ACK_WARNING",payload:{warningId}})});
