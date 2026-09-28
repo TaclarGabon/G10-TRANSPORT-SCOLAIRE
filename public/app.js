@@ -5,7 +5,7 @@ const API=(window.G10Firebase&&window.G10Firebase.apiBase)||"";
 const PIN_AUTH_URL=(window.G10Firebase&&window.G10Firebase.pinAuthUrl)||"";
 
 window.G10={
-  snapshot:{drivers:[],buses:[],zones:[],stops:[],destinations:[],destinationZones:[],runs:[],students:[],fares:[],boardings:[],dailyRides:[],cashClosures:[],driverWarnings:[],driverActivity:[],driverMonthAwards:[],server_time:null},
+  snapshot:{drivers:[],buses:[],zones:[],stops:[],destinations:[],destinationZones:[],runs:[],students:[],fares:[],boardings:[],dailyRides:[],cashClosures:[],driverWarnings:[],driverActivity:[],driverMonthAwards:[],alerts:[],server_time:null},
   currentScreen:"home",
   renderers:{},
   driverSession:null,
