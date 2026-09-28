@@ -1,4 +1,15 @@
+const { defineSecret } = require("firebase-functions/params");
 const { db, FieldValue, makePinSecret, nextId, docId } = require("./core");
+
+const DRIVER1_PIN=defineSecret("DRIVER1_PIN");
+const DRIVER2_PIN=defineSecret("DRIVER2_PIN");
+const DRIVER_PIN_SECRETS=[DRIVER1_PIN,DRIVER2_PIN];
+
+function initialDriverPin(id){
+  if(Number(id)===1)return DRIVER1_PIN.value();
+  if(Number(id)===2)return DRIVER2_PIN.value();
+  return String(1200+Number(id));
+}
 
 const BASE_ZONES = [
   { id: 1, name: "Akanda" },
@@ -63,7 +74,7 @@ async function ensureBase() {
     const drvRef = db.doc("drivers/" + id);
     const drvSnap = await drvRef.get();
     if (!drvSnap.exists) {
-      const pin = makePinSecret(String(1200 + id));
+      const pin = makePinSecret(initialDriverPin(id));
       batch.set(drvRef, {
         name: "",
         employment_status: "ACTIF",
@@ -208,4 +219,4 @@ async function fullResetSeed() {
   await ensureBase();
 }
 
-module.exports = { ensureBase, syncFareMatrix, fullResetSeed };
+module.exports = { ensureBase, syncFareMatrix, fullResetSeed, DRIVER_PIN_SECRETS };
