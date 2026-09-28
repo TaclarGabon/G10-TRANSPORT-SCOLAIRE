@@ -113,13 +113,23 @@ async function handleState(req,res){
   const state=await buildState();
   const token=await optionalAuth(req);
   if(!token)return res.json(publicState(state));
-  if(["ADMIN","OPERATIONS","GUARD","DIRECTION"].includes(token.role))return res.json(state);
+  if(["ADMIN","OPERATIONS","GUARD","DIRECTION"].includes(token.role)){
+    const authTime=Number(token.auth_time||0)*1000;
+    if(!authTime||Date.now()-authTime>12*60*60*1000)return res.status(401).json({ok:false,error:"Session de gestion expirée."});
+    return res.json(state);
+  }
   if(token.role==="DRIVER"){
     const d=state.drivers.find(x=>Number(x.id)===Number(token.driverId));
     if(!d||d.archived_at||d.active_status!=="ACTIF"||d.access_status==="SUSPENDU"||Number(d.session_version)!==Number(token.sessionVersion)){
       return res.status(401).json({ok:false,error:"Session chauffeur expirée ou suspendue."});
     }
     return res.json(driverState(state,token.driverId));
+  }
+  if(token.role==="PARENT"){
+    const g=await db.doc("guardians/"+String(token.guardianKey||"")).get();
+    if(!g.exists||Number(g.data().session_version||1)!==Number(token.sessionVersion||1)){
+      return res.status(401).json({ok:false,error:"Session parent expirée."});
+    }
   }
   return res.json(publicState(state));
 }
