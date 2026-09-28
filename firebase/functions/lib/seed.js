@@ -184,7 +184,7 @@ async function syncFareMatrix() {
 async function fullResetSeed() {
   const collections = [
     "boardings", "dailyRides", "cashClosures", "students", "fares",
-    "driverWarnings", "driverActivity", "driverMonthAwards", "guardians",
+    "driverWarnings", "driverActivity", "driverMonthAwards", "guardians", "authAttempts",
     "destinationZones", "destinations", "stops", "zones", "runs", "buses", "drivers"
   ];
   for (const name of collections) {
