@@ -1,0 +1,1 @@
+INSERT INTO school_drivers (id,name,pin,employment_status) SELECT 4,'MADILA MADILA Stanislas Rodrigue','4444','DEPART_A_CONFIRMER' WHERE NOT EXISTS (SELECT 1 FROM school_drivers WHERE id=4)
