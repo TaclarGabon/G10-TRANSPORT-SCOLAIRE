@@ -124,16 +124,19 @@ async function handlePinAuth(req, res, secrets) {
     }
     await clearFailures("parent",key);
 
+    const sessionVersion=Number(g.session_version||1);
     const uid = "parent-" + key;
     const customToken = await auth.createCustomToken(uid, {
       role: "PARENT",
-      guardianKey: key
+      guardianKey: key,
+      sessionVersion
     });
     return res.json({
       ok: true,
       customToken,
       role: "PARENT",
-      guardianName: g.guardian_name
+      guardianName: g.guardian_name,
+      sessionVersion
     });
   }
 
