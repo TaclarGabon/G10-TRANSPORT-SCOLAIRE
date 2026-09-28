@@ -22,13 +22,13 @@ async function buildState() {
   const today=gabonDateKey();
   const [
     drivers,buses,zones,stops,destinations,destinationZones,runs,students,fares,
-    boardingsAll,dailyRidesAll,cashAll,driverWarnings,driverActivity,driverMonthAwards
+    boardingsAll,dailyRidesAll,cashAll,driverWarnings,driverActivity,driverMonthAwards,alerts
   ]=await Promise.all([
     getCollection("drivers"),getCollection("buses"),getCollection("zones"),
     getCollection("stops"),getCollection("destinations"),getCollection("destinationZones"),
     getCollection("runs"),getCollection("students"),getCollection("fares"),
     getCollection("boardings"),getCollection("dailyRides"),getCollection("cashClosures"),
-    getCollection("driverWarnings"),getCollection("driverActivity"),getCollection("driverMonthAwards")
+    getCollection("driverWarnings"),getCollection("driverActivity"),getCollection("driverMonthAwards"),getCollection("alerts")
   ]);
 
   const driverMap=new Map(drivers.map(x=>[Number(x.id),x]));
@@ -72,6 +72,7 @@ async function buildState() {
     driverWarnings:driverWarnings.sort((a,b)=>String(b.complaint_date||"").localeCompare(String(a.complaint_date||""))||Number(b.id)-Number(a.id)),
     driverActivity:driverActivity.sort((a,b)=>String(b.service_date||"").localeCompare(String(a.service_date||""))||Number(b.id)-Number(a.id)),
     driverMonthAwards:driverMonthAwards.sort((a,b)=>String(b.month_key||"").localeCompare(String(a.month_key||""))),
+    alerts:alerts.filter(a=>!a.service_date||a.service_date===today).sort((a,b)=>String(b.created_at||"").localeCompare(String(a.created_at||""))),
     server_time:new Date().toISOString()
   };
 }
@@ -83,7 +84,7 @@ function publicState(state){
     })),
     buses:state.buses.filter(b=>b.active!==false).map(b=>({id:b.id,label:b.label,plate:b.plate,capacity:b.capacity,active:b.active})),
     runs:state.runs.map(r=>({bus_id:r.bus_id,driver_id:r.driver_id,zone_id:r.zone_id,status:r.status})),
-    zones:[],stops:[],destinations:[],destinationZones:[],students:[],fares:[],boardings:[],dailyRides:[],cashClosures:[],driverWarnings:[],driverActivity:[],driverMonthAwards:[],
+    zones:[],stops:[],destinations:[],destinationZones:[],students:[],fares:[],boardings:[],dailyRides:[],cashClosures:[],driverWarnings:[],driverActivity:[],driverMonthAwards:[],alerts:[],
     server_time:state.server_time
   };
 }
@@ -105,7 +106,8 @@ function driverState(state,driverId){
     cashClosures:state.cashClosures.filter(c=>Number(c.bus_id)===busId),
     driverWarnings:state.driverWarnings.filter(w=>Number(w.driver_id)===Number(driverId)),
     driverActivity:state.driverActivity.filter(a=>Number(a.driver_id)===Number(driverId)),
-    driverMonthAwards:[]
+    driverMonthAwards:[],
+    alerts:(state.alerts||[]).filter(a=>Number(a.driver_id)===Number(driverId)||Number(a.bus_id)===busId)
   };
 }
 
