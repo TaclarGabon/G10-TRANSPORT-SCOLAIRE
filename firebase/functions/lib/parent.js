@@ -9,7 +9,11 @@ async function handleParentLogin(req,res){
 
   const gSnap=await db.doc("guardians/"+key).get();
   if(!gSnap.exists)return res.status(404).json({ok:false,error:"Compte parent introuvable."});
-  const guardian=gSnap.data(),studentIds=Array.isArray(guardian.student_ids)?guardian.student_ids.map(Number):[];
+  const guardian=gSnap.data();
+  if(Number(guardian.session_version||1)!==Number(token.sessionVersion||1)){
+    return res.status(401).json({ok:false,error:"Session parent expirée. Reconnectez-vous."});
+  }
+  const studentIds=Array.isArray(guardian.student_ids)?guardian.student_ids.map(Number):[];
   const today=gabonDateKey(),children=[];
 
   for(const id of studentIds){
