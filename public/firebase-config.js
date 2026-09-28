@@ -9,10 +9,13 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
+
 window.G10Firebase = {
   app: firebase.app(),
   auth: firebase.auth(),
   db: firebase.firestore(),
   FieldValue: firebase.firestore.FieldValue,
-  Timestamp: firebase.firestore.Timestamp
+  Timestamp: firebase.firestore.Timestamp,
+  apiBase: "https://europe-west1-g10-transport-scolaire.cloudfunctions.net/api",
+  pinAuthUrl: "https://europe-west1-g10-transport-scolaire.cloudfunctions.net/pinAuth"
 };
