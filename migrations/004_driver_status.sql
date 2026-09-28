@@ -1,0 +1,1 @@
+ALTER TABLE school_drivers ADD COLUMN IF NOT EXISTS employment_status TEXT NOT NULL DEFAULT 'ACTIF'
