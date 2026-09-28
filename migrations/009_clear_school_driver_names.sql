@@ -1,0 +1,1 @@
+UPDATE school_drivers SET name='',employment_status='ACTIF',updated_at=now() WHERE id IN (1,2)
