@@ -9,6 +9,35 @@ function safeEqual(a, b) {
   return crypto.timingSafeEqual(aa, bb);
 }
 
+function attemptKey(kind,identity){
+  return crypto.createHash("sha256").update(String(kind)+"|"+String(identity)).digest("hex");
+}
+async function assertNotLocked(kind,identity){
+  const ref=db.doc("authAttempts/"+attemptKey(kind,identity));
+  const snap=await ref.get();
+  const locked=snap.data()?.locked_until?.toDate?.();
+  if(locked&&locked.getTime()>Date.now()){
+    const seconds=Math.ceil((locked.getTime()-Date.now())/1000);
+    const e=new Error("Trop de tentatives. Réessaie dans "+Math.ceil(seconds/60)+" minute(s).");
+    e.status=429;throw e;
+  }
+}
+async function recordFailure(kind,identity){
+  const ref=db.doc("authAttempts/"+attemptKey(kind,identity));
+  await db.runTransaction(async tx=>{
+    const snap=await tx.get(ref),data=snap.exists?snap.data():{};
+    const last=data.last_failed_at?.toDate?.();
+    const fresh=!last||Date.now()-last.getTime()>10*60*1000;
+    const count=(fresh?0:Number(data.fail_count||0))+1;
+    const next={fail_count:count,last_failed_at:new Date()};
+    if(count>=5)next.locked_until=new Date(Date.now()+10*60*1000);
+    tx.set(ref,next,{merge:true});
+  });
+}
+async function clearFailures(kind,identity){
+  await db.doc("authAttempts/"+attemptKey(kind,identity)).delete().catch(()=>{});
+}
+
 async function handlePinAuth(req, res, secrets) {
   await ensureBase();
   const b = req.body || {};
@@ -21,6 +50,7 @@ async function handlePinAuth(req, res, secrets) {
       ? ["ADMIN", "DIRECTION"]
       : [requested];
 
+    await assertNotLocked("management",requested);
     let role = null;
     for (const candidate of candidates) {
       if (!["ADMIN", "OPERATIONS", "GUARD", "DIRECTION"].includes(candidate)) continue;
@@ -29,7 +59,11 @@ async function handlePinAuth(req, res, secrets) {
         break;
       }
     }
-    if (!role) return res.status(401).json({ ok: false, error: "Code d’accès incorrect." });
+    if (!role) {
+      await recordFailure("management",requested);
+      return res.status(401).json({ ok: false, error: "Code d’accès incorrect." });
+    }
+    await clearFailures("management",requested);
 
     const uid = "mgmt-" + role.toLowerCase();
     const customToken = await auth.createCustomToken(uid, { role });
@@ -41,6 +75,7 @@ async function handlePinAuth(req, res, secrets) {
     const pin = String(b.pin || "");
     if (!driverId || !pin) return res.status(400).json({ ok: false, error: "Chauffeur et PIN requis." });
 
+    await assertNotLocked("driver",driverId);
     const snap = await db.doc("drivers/" + driverId).get();
     if (!snap.exists) return res.status(401).json({ ok: false, error: "Chauffeur introuvable." });
     const d = snap.data();
@@ -52,8 +87,10 @@ async function handlePinAuth(req, res, secrets) {
       return res.status(403).json({ ok: false, error: "Accès chauffeur suspendu par la Direction." });
     }
     if (!verifyPin(pin, d.pin_salt, d.pin_hash)) {
+      await recordFailure("driver",driverId);
       return res.status(401).json({ ok: false, error: "Code chauffeur incorrect." });
     }
+    await clearFailures("driver",driverId);
 
     const uid = "driver-" + driverId;
     const customToken = await auth.createCustomToken(uid, {
@@ -76,13 +113,16 @@ async function handlePinAuth(req, res, secrets) {
     if (!name || !pin) return res.status(400).json({ ok: false, error: "Nom du parent et mot de passe requis." });
 
     const key = guardianKey(name);
+    await assertNotLocked("parent",key);
     const snap = await db.doc("guardians/" + key).get();
     if (!snap.exists) return res.status(401).json({ ok: false, error: "Nom du parent ou mot de passe incorrect." });
     const g = snap.data();
 
     if (normalizeName(g.guardian_name) !== normalizeName(name) || !verifyPin(pin, g.pin_salt, g.pin_hash)) {
+      await recordFailure("parent",key);
       return res.status(401).json({ ok: false, error: "Nom du parent ou mot de passe incorrect." });
     }
+    await clearFailures("parent",key);
 
     const uid = "parent-" + key;
     const customToken = await auth.createCustomToken(uid, {
