@@ -54,12 +54,13 @@ window.parentLogin=async()=>{
   try{
     const authOut=await G10.pinLogin({kind:"parent",guardianName,pin});
     G10.parentSession={guardianName:authOut.guardianName||guardianName};
+    sessionStorage.setItem("g10_school_parent_session",JSON.stringify(G10.parentSession));
     G10.parentData=await G10.api("/parent-login",{method:"POST",body:"{}"});
     await G10.loadState(true);
     renderParent();G10.toast("Connexion réussie");
-  }catch(e){G10.parentSession=null;G10.parentData=null;await G10Firebase.auth.signOut().catch(()=>{});G10.toast(e.message)}
+  }catch(e){G10.parentSession=null;G10.parentData=null;sessionStorage.removeItem("g10_school_parent_session");G10.toast(e.message)}
 };
-window.parentLogout=async()=>{G10.parentSession=null;G10.parentData=null;await G10Firebase.auth.signOut().catch(()=>{});await G10.loadState(true);renderParent()};
+window.parentLogout=async()=>{G10.parentSession=null;G10.parentData=null;sessionStorage.removeItem("g10_school_parent_session");await G10.loadState(true);renderParent()};
 window.refreshParent=async()=>{
   if(!G10.parentSession)return;
   G10.parentData=await G10.api("/parent-login",{method:"POST",body:"{}"});
