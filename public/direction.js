@@ -34,6 +34,7 @@ function renderDashboard(){
   html+='<h4 class="directionBlockTitle">Analyse du jour par arrêt et établissement</h4>'+renderDailyAnalytics();
   html+=renderDirectionWarnings();
   html+=renderDriverAccessManagement();
+  html+=renderManagementAccess();
   html+=renderDriverOfMonth();
   $("#dashboardContent").innerHTML=html;
 }
@@ -106,6 +107,55 @@ window.forceDriverLogout=async driverId=>{
   try{
     await G10.managementAction("dashboard",{action:"FORCE_DRIVER_LOGOUT",driverId});
     await G10.loadState();G10.toast("Déconnexion forcée envoyée");
+  }catch(e){G10.toast(e.message)}
+};
+
+
+function renderManagementAccess(){
+  const roles=(G10.snapshot.managementAccess||[]).filter(r=>["ADMIN","OPERATIONS","GUARD","DIRECTION"].includes(r.role));
+  return '<h4 class="directionBlockTitle">Accès équipe de gestion — phase test</h4>'+
+    '<div class="callout"><b>Accès commun par rôle pendant le pilote.</b> Si une personne quitte G10, la Direction change le PIN de son rôle puis force la déconnexion : l’ancien PIN et les anciennes sessions ne fonctionnent plus dans l’application. Après validation du projet, on pourra passer à des comptes individuels nominatifs.</div>'+
+    '<div class="grid2" style="margin-top:12px">'+roles.map(r=>{
+      const active=r.active!==false;
+      const isDirection=r.role==="DIRECTION";
+      return '<div class="accessCard"><div class="panelHead"><div><h4>'+G10.esc(r.label||r.role)+'</h4><p class="muted">Version d’accès '+Number(r.access_version||1)+'</p></div>'+G10.badge(active?"AUTORISE":"SUSPENDU")+'</div>'+
+        '<div class="actions">'+
+          '<button class="btn light" onclick="changeManagementPin(\''+r.role+'\')">Changer le PIN</button>'+
+          '<button class="btn light" onclick="forceManagementLogout(\''+r.role+'\')">Forcer la déconnexion</button>'+
+          '<button class="btn '+(active?"orange":"green")+'" '+(isDirection?"disabled":"")+' onclick="setManagementAccess(\''+r.role+'\','+(!active)+')">'+(active?"Suspendre ce rôle":"Réactiver ce rôle")+'</button>'+
+        '</div>'+
+        (isDirection?'<p class="muted" style="margin-top:8px">Le rôle Direction ne peut pas être suspendu depuis cet écran afin d’éviter de verrouiller toute l’administration.</p>':'')+
+      '</div>';
+    }).join("")+'</div>';
+}
+window.changeManagementPin=async role=>{
+  const pin=prompt("Nouveau PIN pour ce rôle (4 chiffres minimum)");
+  if(pin===null)return;
+  if(!/^\d{4,}$/.test(pin.trim()))return G10.toast("PIN invalide.");
+  if(!confirm("Changer ce PIN invalidera immédiatement les anciennes sessions de ce rôle. Continuer ?"))return;
+  try{
+    await G10.managementAction("dashboard",{action:"CHANGE_MANAGEMENT_PIN",role,pin:pin.trim()});
+    if(G10.managementSessions[role])delete G10.managementSessions[role];
+    sessionStorage.setItem("g10_school_management_sessions",JSON.stringify(G10.managementSessions));
+    await G10.loadState();G10.toast("PIN modifié — anciennes sessions invalidées");
+  }catch(e){G10.toast(e.message)}
+};
+window.forceManagementLogout=async role=>{
+  if(!confirm("Forcer la déconnexion de tous les appareils actuellement connectés avec ce rôle ?"))return;
+  try{
+    await G10.managementAction("dashboard",{action:"FORCE_MANAGEMENT_LOGOUT",role});
+    if(G10.managementSessions[role])delete G10.managementSessions[role];
+    sessionStorage.setItem("g10_school_management_sessions",JSON.stringify(G10.managementSessions));
+    await G10.loadState();G10.toast("Déconnexion forcée envoyée");
+  }catch(e){G10.toast(e.message)}
+};
+window.setManagementAccess=async(role,active)=>{
+  if(!confirm((active?"Réactiver":"Suspendre")+" ce rôle ?"))return;
+  try{
+    await G10.managementAction("dashboard",{action:"SET_MANAGEMENT_ACCESS",role,active});
+    if(!active&&G10.managementSessions[role])delete G10.managementSessions[role];
+    sessionStorage.setItem("g10_school_management_sessions",JSON.stringify(G10.managementSessions));
+    await G10.loadState();G10.toast(active?"Rôle réactivé":"Rôle suspendu");
   }catch(e){G10.toast(e.message)}
 };
 
