@@ -1,0 +1,17 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Le frontend écoute uniquement ce document pour savoir qu'une donnée a changé.
+    match /system/sync {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Toutes les données métier passent par les Cloud Functions Firebase.
+    // L'Admin SDK des Functions n'est pas soumis à ces règles.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
