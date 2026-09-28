@@ -1,7 +1,11 @@
-// G10 Transport Scolaire — Firebase dédié
+// G10 Transport Scolaire — Firebase Spark / phase pilote
+// Même principe que G10 Interurbain : Auth anonyme + Realtime Database.
 const firebaseConfig = {
   apiKey: "AIzaSyCE0usFMkV-vfXg3lFlhXrI5qMoeKJNK1s",
   authDomain: "g10-transport-scolaire.firebaseapp.com",
+  // URL attendue pour la base Realtime Database européenne.
+  // À vérifier dans la console Firebase dès la création de Realtime Database.
+  databaseURL: "https://g10-transport-scolaire-default-rtdb.europe-west1.firebasedatabase.app",
   projectId: "g10-transport-scolaire",
   storageBucket: "g10-transport-scolaire.firebasestorage.app",
   messagingSenderId: "85816284523",
@@ -13,9 +17,6 @@ firebase.initializeApp(firebaseConfig);
 window.G10Firebase = {
   app: firebase.app(),
   auth: firebase.auth(),
-  db: firebase.firestore(),
-  FieldValue: firebase.firestore.FieldValue,
-  Timestamp: firebase.firestore.Timestamp,
-  apiBase: "https://europe-west1-g10-transport-scolaire.cloudfunctions.net/api",
-  pinAuthUrl: "https://europe-west1-g10-transport-scolaire.cloudfunctions.net/pinAuth"
+  db: firebase.database(),
+  statePath: "g10Scolaire/state"
 };
