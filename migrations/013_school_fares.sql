@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS school_fares (
+  id SERIAL PRIMARY KEY,
+  zone TEXT NOT NULL,
+  pickup TEXT NOT NULL,
+  school TEXT NOT NULL,
+  monthly_amount INTEGER NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT true,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)
