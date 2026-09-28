@@ -48,11 +48,29 @@ async function destinationMatches(zoneName,school){
   const d=dests.find(x=>x.active!==false&&x.name===school);
   return !!(z&&d&&links.find(l=>l.active!==false&&Number(l.zone_id)===Number(z.id)&&Number(l.destination_id)===Number(d.id)));
 }
+async function assertDriverSession(token,busId=null){
+  const did=Number(token.driverId);
+  const dSnap=await db.doc("drivers/"+did).get();
+  if(!dSnap.exists)err(401,"Chauffeur introuvable.");
+  const d=dSnap.data();
+  if(d.archived_at||d.active_status!=="ACTIF")err(403,"Ce chauffeur est inactif.");
+  if(d.access_status==="SUSPENDU")err(403,"Accès chauffeur suspendu par la Direction.");
+  if(Number(d.session_version)!==Number(token.sessionVersion))err(401,"Session chauffeur expirée. Reconnecte-toi.");
+  if(busId){
+    const run=(await db.doc("runs/"+Number(busId)).get()).data();
+    if(!run||Number(run.driver_id)!==did)err(403,"Ce bus ne t’est pas affecté.");
+  }
+  return d;
+}
 async function authorizeAction(req,action){
   const config=["SAVE_ZONE","DELETE_ZONE","SAVE_STOP","DELETE_STOP","REORDER_STOPS","SAVE_DESTINATION","ASSOCIATE_DESTINATION","REMOVE_DESTINATION_ZONE","REORDER_DESTINATIONS","DELETE_DESTINATION","ADD_STUDENT","UPDATE_STUDENT","DELETE_STUDENT","IMPORT_STUDENTS","SAVE_FARES_BULK"];
   const driver=["SET_BOARDING","ADD_DAILY_RIDE","ARRIVE_DESTINATION","ARRIVE_STOP","DROP_DAILY_GROUP","CANCEL_DAILY_RIDE","PASS_STOP","CLOSE_CASH"];
   if(config.includes(action))return requireRoles(req,["ADMIN","DIRECTION"]);
-  if(driver.includes(action))return requireRoles(req,["DRIVER"]);
+  if(driver.includes(action)){
+    const token=await requireRoles(req,["DRIVER"]);
+    await assertDriverSession(token,Number(req.body?.busId)||null);
+    return token;
+  }
   if(action==="SET_PARENT_ABSENCE")return requireRoles(req,["PARENT","ADMIN","DIRECTION"]);
   return requireAuth(req);
 }
