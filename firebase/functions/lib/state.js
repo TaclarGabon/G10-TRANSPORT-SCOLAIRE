@@ -114,7 +114,13 @@ async function handleState(req,res){
   const token=await optionalAuth(req);
   if(!token)return res.json(publicState(state));
   if(["ADMIN","OPERATIONS","GUARD","DIRECTION"].includes(token.role))return res.json(state);
-  if(token.role==="DRIVER")return res.json(driverState(state,token.driverId));
+  if(token.role==="DRIVER"){
+    const d=state.drivers.find(x=>Number(x.id)===Number(token.driverId));
+    if(!d||d.archived_at||d.active_status!=="ACTIF"||d.access_status==="SUSPENDU"||Number(d.session_version)!==Number(token.sessionVersion)){
+      return res.status(401).json({ok:false,error:"Session chauffeur expirée ou suspendue."});
+    }
+    return res.json(driverState(state,token.driverId));
+  }
   return res.json(publicState(state));
 }
 
