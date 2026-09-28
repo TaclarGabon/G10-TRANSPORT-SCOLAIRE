@@ -276,6 +276,13 @@ async function handleSchoolAction(req,res){
     if(status==="MONTE"&&!prev.data()?.boarded_at)data.boarded_at=FieldValue.serverTimestamp();
     if(status==="DEPOSE")data.dropped_at=FieldValue.serverTimestamp();
     await ref.set(data,{merge:true});
+    if(status==="ABSENT"&&token.role==="DRIVER"){
+      await db.doc("alerts/absence_"+today+"_"+studentId+"_MATIN").set({
+        service_date:today,type:"ABSENCE_RAMASSAGE",student_id:studentId,
+        guardian_key:student.guardian_key||null,bus_id:busId,driver_id:Number(token.driverId),
+        status:"NOUVELLE",message:"Élève absent au point de ramassage.",created_at:FieldValue.serverTimestamp()
+      },{merge:true});
+    }
     if(busId&&(status==="MONTE"||status==="DEPOSE")){
       const location=leg==="MATIN"?(status==="MONTE"?student.pickup:student.school):(status==="MONTE"?student.school:student.pickup);
       let stopId=null;
@@ -300,8 +307,17 @@ async function handleSchoolAction(req,res){
     }
     await stRef.set({absence_today:absent,updated_at:FieldValue.serverTimestamp()},{merge:true});
     const today=gabonDateKey(),ref=db.doc("boardings/"+today+"_"+studentId+"_MATIN");
-    if(absent)await ref.set({student_id:studentId,service_date:today,leg:"MATIN",status:"ABSENT",updated_at:FieldValue.serverTimestamp()},{merge:true});
-    else{const s=await ref.get();if(s.exists&&s.data().status==="ABSENT")await ref.delete();}
+    if(absent){
+      await ref.set({student_id:studentId,service_date:today,leg:"MATIN",status:"ABSENT",updated_at:FieldValue.serverTimestamp()},{merge:true});
+      await db.doc("alerts/parent_absence_"+today+"_"+studentId).set({
+        service_date:today,type:"ABSENCE_PARENT",student_id:studentId,guardian_key:st.guardian_key||null,
+        bus_id:Number(st.bus_id)||null,driver_id:null,status:"NOUVELLE",
+        message:"Absence signalée par le parent.",created_at:FieldValue.serverTimestamp()
+      },{merge:true});
+    }else{
+      const s=await ref.get();if(s.exists&&s.data().status==="ABSENT")await ref.delete();
+      await db.doc("alerts/parent_absence_"+today+"_"+studentId).delete().catch(()=>{});
+    }
     await touchSync(action);return res.json({ok:true});
   }
 
