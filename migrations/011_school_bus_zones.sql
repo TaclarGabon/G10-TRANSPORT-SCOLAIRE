@@ -1,0 +1,3 @@
+UPDATE school_buses SET capacity=23, route_name='Zone Akanda', start_name='Akanda — points d’arrêt G10', stop_name='Établissements scolaires', end_name='Gare routière', scheduled_start='À définir' WHERE id=1;
+UPDATE school_buses SET capacity=23, route_name='Zone Owendo', start_name='Owendo — points d’arrêt G10', stop_name='Établissements scolaires', end_name='Gare routière', scheduled_start='À définir' WHERE id=2;
+UPDATE school_runs SET driver_id=NULL,status='NON_ASSIGNE',checklist='{}'::jsonb,boarded=0,stage=0,departed_at=NULL,arrived_at=NULL,updated_at=now();
