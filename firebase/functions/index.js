@@ -11,6 +11,7 @@ const {handleDriverAction}=require("./lib/driver");
 const {handleManagementAction}=require("./lib/management");
 const {handleParentLogin}=require("./lib/parent");
 const {handleReset}=require("./lib/reset");
+const {DRIVER_PIN_SECRETS}=require("./lib/seed");
 
 const ADMIN_PIN=defineSecret("ADMIN_PIN");
 const OPERATIONS_PIN=defineSecret("OPERATIONS_PIN");
@@ -37,7 +38,7 @@ pinApp.all("*",(req,res)=>res.status(405).json({ok:false,error:"Méthode non aut
 
 exports.pinAuth=onRequest({
   region:"europe-west1",
-  secrets:[ADMIN_PIN,OPERATIONS_PIN,GUARD_PIN,DIRECTION_PIN],
+  secrets:[ADMIN_PIN,OPERATIONS_PIN,GUARD_PIN,DIRECTION_PIN,...DRIVER_PIN_SECRETS],
   timeoutSeconds:30,
   memory:"256MiB"
 },pinApp);
@@ -69,6 +70,7 @@ app.use((req,res)=>res.status(404).json({ok:false,error:"Route Firebase introuva
 
 exports.api=onRequest({
   region:"europe-west1",
+  secrets:[...DRIVER_PIN_SECRETS],
   timeoutSeconds:60,
   memory:"512MiB"
 },app);
