@@ -130,6 +130,11 @@ G10.setTitle=(title,subtitle)=>{if($("#pageTitle"))$("#pageTitle").textContent=t
 
 G10.roleAllows=(needed,role)=>{
   if(!needed)return true;
+  const claims=G10.firebaseClaims||{};
+  if(["ADMIN","OPERATIONS","GUARD","DIRECTION"].includes(role)){
+    const authTime=Number(claims.auth_time||0)*1000;
+    if(!authTime||Date.now()-authTime>12*60*60*1000)return false;
+  }
   if(needed==="ADMIN_OR_DIRECTION")return ["ADMIN","DIRECTION"].includes(role);
   return role===needed;
 };
