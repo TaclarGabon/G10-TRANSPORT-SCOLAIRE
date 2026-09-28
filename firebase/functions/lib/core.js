@@ -106,6 +106,14 @@ async function requireAuth(req) {
     e.status = 401;
     throw e;
   }
+  if (["ADMIN","OPERATIONS","GUARD","DIRECTION"].includes(token.role)) {
+    const authTime = Number(token.auth_time || 0) * 1000;
+    if (!authTime || Date.now() - authTime > 12 * 60 * 60 * 1000) {
+      const e = new Error("Session de gestion expirée. Entre de nouveau le code d’accès.");
+      e.status = 401;
+      throw e;
+    }
+  }
   return token;
 }
 
