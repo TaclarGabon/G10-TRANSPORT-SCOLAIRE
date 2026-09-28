@@ -136,7 +136,10 @@ async function writeGuardianProfile(guardianName, pin, studentId) {
     normalized_name: normalizeName(guardianName),
     updated_at: FieldValue.serverTimestamp()
   };
-  if (pin) Object.assign(data, makePinSecret(pin));
+  if (pin) {
+    Object.assign(data, makePinSecret(pin));
+    data.session_version = FieldValue.increment(1);
+  }
   if (studentId != null) {
     data.student_ids = FieldValue.arrayUnion(Number(studentId));
   }
