@@ -1,0 +1,1 @@
+UPDATE school_drivers SET name=CASE id WHEN 1 THEN 'IWANGU INZAMBE Mohamed Edherson' WHEN 2 THEN 'BMA ONDO Emmanuel' ELSE name END, employment_status=CASE WHEN id=4 THEN 'DEPART_A_CONFIRMER' ELSE 'ACTIF' END, updated_at=now() WHERE id IN (1,2,3,4)
