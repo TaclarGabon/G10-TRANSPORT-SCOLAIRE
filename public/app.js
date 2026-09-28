@@ -52,7 +52,7 @@ G10.api=async(path,opts={})=>{
   }
   const res=await fetch(API+path,{...opts,headers});
   let data={};try{data=await res.json()}catch(e){}
-  if(!res.ok)throw new Error(data.error||("Erreur "+res.status));
+  if(!res.ok){const err=new Error(data.error||("Erreur "+res.status));err.status=res.status;throw err}
   return data;
 };
 
@@ -215,7 +215,13 @@ G10.loadState=async(silent=true)=>{
     if(!silent)G10.toast("Données synchronisées");
   }catch(e){
     const pill=$("#syncPill");if(pill)pill.textContent="🟠 Firebase en attente";
-    if(!silent)G10.toast(e.message);
+    if(e.status===401&&window.G10Firebase?.auth?.currentUser){
+      const wasParent=!!G10.parentSession,wasDriver=!!G10.driverSession;
+      G10.driverSession=null;G10.parentSession=null;G10.parentData=null;G10.managementSessions={};G10.firebaseClaims=null;
+      await G10Firebase.auth.signOut().catch(()=>{});
+      G10.applyDriverNav();
+      if(wasParent||wasDriver||!silent)G10.toast(e.message||"Session expirée.");
+    }else if(!silent)G10.toast(e.message);
   }
 };
 
