@@ -1,0 +1,1 @@
+INSERT INTO school_drivers (id,name,pin,employment_status) SELECT 3,'MIHINDOU MIHINDOU Armel','3333','ACTIF' WHERE NOT EXISTS (SELECT 1 FROM school_drivers WHERE id=3)
