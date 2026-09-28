@@ -118,10 +118,14 @@ async function ensureBase() {
     }
   }
 
-  batch.set(db.doc("meta/counters"), {
-    drivers: 2, buses: 2, zones: 2, stops: 8, destinations: 10,
-    students: 0, fares: 0, dailyRides: 0, driverWarnings: 0
-  }, { merge: true });
+  const countersRef=db.doc("meta/counters");
+  const countersSnap=await countersRef.get();
+  if(!countersSnap.exists){
+    batch.set(countersRef, {
+      drivers: 2, buses: 2, zones: 2, stops: 8, destinations: 10,
+      students: 0, fares: 0, dailyRides: 0, driverWarnings: 0
+    });
+  }
 
   batch.set(db.doc("system/sync"), {
     version: 0,
