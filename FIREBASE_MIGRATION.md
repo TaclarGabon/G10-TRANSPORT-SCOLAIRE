@@ -2,19 +2,29 @@
 
 Branche de travail : `firebase-migration`
 
-## État
-- Firebase Web configuré pour le projet `g10-transport-scolaire`.
-- Firestore créé en production dans `eur3`.
-- Authentication e-mail / mot de passe activée.
-- Les règles Firestore doivent rester fermées tant que la migration n'est pas terminée.
-- Les chemins des scripts ont été rendus compatibles avec GitHub Pages.
-- La version `main` reste inchangée pendant les travaux.
+## Architecture pilote retenue
+- GitHub Pages
+- Firebase Spark
+- Authentication anonyme
+- Realtime Database
+- synchronisation temps réel
+- PIN applicatifs hachés
+- aucune Cloud Function nécessaire
+
+Cette architecture suit le même principe que G10 Interurbain pour la phase de démonstration et de test.
+
+## Accès pendant le pilote
+- Administration, Chef d'exploitation, Gardien / Clés et Direction utilisent un accès par rôle.
+- La Direction peut changer un PIN de rôle et forcer la déconnexion des sessions correspondantes.
+- Les chauffeurs ont un PIN individuel avec suspension et déconnexion forcée.
+- Une version d'accès permet d'invalider les anciennes sessions dans l'application.
 
 ## À terminer avant bascule
-1. Remplacer les appels backend Hatchable par Firestore.
-2. Migrer/synchroniser les collections G10 Scolaire.
-3. Mettre en place les rôles et règles Firestore.
-4. Tester Administration, Exploitation, Chauffeur, Direction et Parent.
-5. Remise à zéro de la journée de démonstration.
-6. Test distant sur deux appareils.
-7. Fusion vers `main`, puis activation GitHub Pages.
+1. Activer Authentication > Anonyme.
+2. Créer Realtime Database.
+3. Vérifier son URL dans `public/firebase-config.js`.
+4. Publier les règles de `firebase/database.rules.json`.
+5. Tester Administration, Exploitation, Chauffeur, Direction et Parent.
+6. Tester la synchronisation entre deux appareils.
+7. Réinitialiser la journée de démonstration.
+8. Valider puis fusionner dans `main`.
