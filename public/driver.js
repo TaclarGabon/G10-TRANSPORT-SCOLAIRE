@@ -262,13 +262,16 @@ window.driverLogin=async()=>{
   const run=G10.snapshot.runs.find(x=>Number(x.driver_id)===driverId);
   if(!run)return G10.toast("Aucun bus n’est affecté à ce chauffeur.");
   try{
-    const out=await G10.api("/driver-action",{method:"POST",body:JSON.stringify({driverId,pin,busId:Number(run.bus_id),action:"LOGIN"})});
-    G10.driverSession={driverId,pin,busId:Number(run.bus_id),sessionVersion:Number(out.sessionVersion)};
+    const authOut=await G10.pinLogin({kind:"driver",driverId,pin});
+    G10.driverSession={driverId,busId:Number(run.bus_id),sessionVersion:Number(authOut.sessionVersion)};
+    const out=await G10.api("/driver-action",{method:"POST",body:JSON.stringify({busId:Number(run.bus_id),action:"LOGIN"})});
+    G10.driverSession.sessionVersion=Number(out.sessionVersion||authOut.sessionVersion);
+    sessionStorage.setItem("g10_school_driver_session",JSON.stringify(G10.driverSession));
     G10.applyDriverNav();
     await G10.loadState();G10.toast("Connexion réussie");
-  }catch(e){G10.toast(e.message)}
+  }catch(e){G10.driverSession=null;sessionStorage.removeItem("g10_school_driver_session");G10.toast(e.message)}
 };
-window.driverLogout=()=>{G10.driverSession=null;G10.applyDriverNav();renderDriver()};
+window.driverLogout=async()=>{G10.driverSession=null;sessionStorage.removeItem("g10_school_driver_session");G10.applyDriverNav();await G10.loadState(true);renderDriver()};
 window.ackDriverWarning=async warningId=>{
   try{
     await G10.api("/driver-action",{method:"POST",body:JSON.stringify({...G10.driverSession,action:"ACK_WARNING",payload:{warningId}})});

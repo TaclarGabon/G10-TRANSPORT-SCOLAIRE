@@ -1,9 +1,8 @@
 const $=q=>document.querySelector(q);
 const $$=q=>[...document.querySelectorAll(q)];
-const API=(window.__HATCHABLE__&&window.__HATCHABLE__.api)||"/api";
 
 window.G10={
-  snapshot:{drivers:[],buses:[],zones:[],stops:[],destinations:[],destinationZones:[],runs:[],students:[],fares:[],boardings:[],dailyRides:[],cashClosures:[],driverWarnings:[],driverActivity:[],driverMonthAwards:[],server_time:null},
+  snapshot:{drivers:[],buses:[],zones:[],stops:[],destinations:[],destinationZones:[],runs:[],students:[],fares:[],boardings:[],dailyRides:[],cashClosures:[],driverWarnings:[],driverActivity:[],driverMonthAwards:[],managementAccess:[],accessLog:[],server_time:null},
   currentScreen:"home",
   renderers:{},
   driverSession:null,
@@ -13,14 +12,36 @@ window.G10={
   managementRoles:{admin:"ADMIN",operations:"OPERATIONS",dashboard:"DIRECTION",documents:"ADMIN_OR_DIRECTION"}
 };
 
+try{
+  const saved=JSON.parse(sessionStorage.getItem("g10_school_management_sessions")||"{}");
+  if(saved&&typeof saved==="object")G10.managementSessions=saved;
+}catch(e){}
+try{
+  const saved=JSON.parse(sessionStorage.getItem("g10_school_driver_session")||"null");
+  if(saved)G10.driverSession=saved;
+}catch(e){}
+try{
+  const saved=JSON.parse(sessionStorage.getItem("g10_school_parent_session")||"null");
+  if(saved)G10.parentSession=saved;
+}catch(e){}
+
 G10.esc=v=>String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 G10.money=v=>new Intl.NumberFormat("fr-FR").format(Number(v||0))+" FCFA";
 G10.fmtTime=iso=>!iso?"—":new Intl.DateTimeFormat("fr-FR",{timeZone:"Africa/Libreville",hour:"2-digit",minute:"2-digit"}).format(new Date(iso));
 G10.timeToMinutes=t=>{if(!/^\d{2}:\d{2}$/.test(String(t||"")))return null;const p=String(t).split(":").map(Number);return p[0]*60+p[1]};
 G10.actualToMinutes=iso=>{if(!iso)return null;const s=new Intl.DateTimeFormat("fr-FR",{timeZone:"Africa/Libreville",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(new Date(iso));return G10.timeToMinutes(s)};
 G10.varianceText=(planned,actualIso)=>{const p=G10.timeToMinutes(planned),a=G10.actualToMinutes(actualIso);if(p===null||a===null)return"—";let d=a-p;if(d>720)d-=1440;if(d<-720)d+=1440;if(d===0)return"À l’heure";return d<0?Math.abs(d)+" min d’avance":"+"+d+" min de retard"};
-G10.toast=msg=>{const el=$("#toast");if(!el)return;el.textContent=msg;el.style.display="block";clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.style.display="none",2100)};
-G10.api=async(path,opts={})=>{const res=await fetch(API+path,{headers:{"Content-Type":"application/json",...(opts.headers||{})},...opts});let data={};try{data=await res.json()}catch(e){}if(!res.ok)throw new Error(data.error||("Erreur "+res.status));return data};
+G10.toast=msg=>{const el=$("#toast");if(!el)return;el.textContent=msg;el.style.display="block";clearTimeout(window.__toast);window.__toast=setTimeout(()=>el.style.display="none",2200)};
+
+G10.api=(path,opts={})=>G10Spark.api(path,opts);
+G10.pinLogin=payload=>G10Spark.pinLogin(payload);
+G10.firebaseLogout=async()=>{
+  G10.driverSession=null;G10.parentSession=null;G10.parentData=null;G10.managementSessions={};
+  sessionStorage.removeItem("g10_school_driver_session");
+  sessionStorage.removeItem("g10_school_parent_session");
+  sessionStorage.removeItem("g10_school_management_sessions");
+  G10.applyDriverNav();
+};
 
 G10.busFor=id=>G10.snapshot.buses.find(b=>Number(b.id)===Number(id));
 G10.runFor=id=>G10.snapshot.runs.find(r=>Number(r.bus_id)===Number(id));
@@ -58,25 +79,32 @@ G10.warningLevel=driverId=>{
   if(n===2)return{count:2,icon:"🟠",label:"2e avertissement — risque de mise à pied"};
   return{count:n,icon:"🔴",label:"3e avertissement confirmé — décision Direction requise"};
 };
-
 G10.setTitle=(title,subtitle)=>{if($("#pageTitle"))$("#pageTitle").textContent=title;if($("#pageSubtitle"))$("#pageSubtitle").textContent=subtitle};
 
 G10.managementTokenFor=screen=>{
   const needed=G10.managementRoles[screen];
   if(!needed)return null;
-  if(needed==="ADMIN_OR_DIRECTION")return G10.managementSessions.ADMIN?.token||G10.managementSessions.DIRECTION?.token||null;
-  return G10.managementSessions[needed]?.token||null;
+  if(needed==="ADMIN_OR_DIRECTION")return G10.managementSessions.ADMIN||G10.managementSessions.DIRECTION||null;
+  return G10.managementSessions[needed]||null;
+};
+G10.managementSessionValid=(role,sess)=>{
+  const r=(G10.snapshot.managementAccess||[]).find(x=>x.role===role);
+  return !!(r&&r.active!==false&&Number(r.access_version||1)===Number(sess?.accessVersion||0));
 };
 G10.ensureManagementAccess=async screen=>{
   const needed=G10.managementRoles[screen];
   if(!needed)return true;
-  if(G10.managementTokenFor(screen))return true;
+  if(needed==="ADMIN_OR_DIRECTION"){
+    if(G10.managementSessionValid("ADMIN",G10.managementSessions.ADMIN)||G10.managementSessionValid("DIRECTION",G10.managementSessions.DIRECTION))return true;
+  }else if(G10.managementSessionValid(needed,G10.managementSessions[needed]))return true;
+
   const labels={ADMIN:"Administration",OPERATIONS:"Chef d’exploitation",DIRECTION:"Direction",ADMIN_OR_DIRECTION:"Administration ou Direction"};
   const code=prompt("Code d’accès — "+(labels[needed]||needed));
   if(code===null)return false;
   try{
-    const out=await G10.api("/management-login",{method:"POST",body:JSON.stringify({code,requestedRole:needed})});
-    G10.managementSessions[out.role]={token:out.token};
+    const out=await G10.pinLogin({kind:"management",role:needed,pin:code});
+    G10.managementSessions[out.role]={accessVersion:Number(out.accessVersion||1)};
+    sessionStorage.setItem("g10_school_management_sessions",JSON.stringify(G10.managementSessions));
     return true;
   }catch(e){G10.toast(e.message);return false}
 };
@@ -90,8 +118,7 @@ G10.applyDriverNav=()=>{
 G10.managementAction=async(screen,body)=>{
   const ok=await G10.ensureManagementAccess(screen);
   if(!ok)throw new Error("Accès requis.");
-  const managementToken=G10.managementTokenFor(screen);
-  return G10.api("/management-action",{method:"POST",body:JSON.stringify({...body,managementToken})});
+  return G10.api("/management-action",{method:"POST",body:JSON.stringify(body)});
 };
 
 window.openScreen=async id=>{
@@ -123,31 +150,28 @@ window.openScreen=async id=>{
 };
 G10.renderCurrent=()=>{const fn=G10.renderers[G10.currentScreen];if(fn)fn()};
 G10.loadState=async(silent=true)=>{
-  try{
-    G10.snapshot=await G10.api("/state");
-    if(G10.driverSession){
-      const d=G10.driverFor(G10.driverSession.driverId);
-      if(!d||d.active_status!=="ACTIF"||d.access_status==="SUSPENDU"||Number(d.session_version)!==Number(G10.driverSession.sessionVersion)){
-        G10.driverSession=null;
-        if(G10.currentScreen==="driver")G10.toast("Session chauffeur fermée par la Direction.");
-      }
+  G10.snapshot=G10Spark.normalizeState(G10.snapshot);
+  if(G10.driverSession){
+    const d=G10.driverFor(G10.driverSession.driverId);
+    if(!d||d.active_status!=="ACTIF"||d.access_status==="SUSPENDU"||Number(d.session_version)!==Number(G10.driverSession.sessionVersion)){
+      G10.driverSession=null;sessionStorage.removeItem("g10_school_driver_session");
+      if(G10.currentScreen==="driver")G10.toast("Session chauffeur fermée par la Direction.");
     }
-    G10.applyDriverNav();
-    const pill=$("#syncPill");if(pill)pill.textContent="🟢 G10 Transports Scolaires";
-    G10.renderCurrent();
-    if(!silent)G10.toast("Données synchronisées");
-  }catch(e){
-    const pill=$("#syncPill");if(pill)pill.textContent="🟠 Connexion en attente";
-    if(!silent)G10.toast(e.message);
   }
+  for(const role of Object.keys(G10.managementSessions)){
+    if(!G10.managementSessionValid(role,G10.managementSessions[role]))delete G10.managementSessions[role];
+  }
+  sessionStorage.setItem("g10_school_management_sessions",JSON.stringify(G10.managementSessions));
+  G10.applyDriverNav();
+  G10.renderCurrent();
+  if(!silent)G10.toast("Données synchronisées");
+  return G10.snapshot;
 };
-
-try{
-  const rt=hatchable.events.connect();
-  rt.channel("g10-school-live").on("state-changed",async()=>{await G10.loadState(true);if(G10.parentSession&&window.refreshParent)try{await window.refreshParent()}catch(e){}});
-  rt.channel("g10-school-live").on("$reset",()=>G10.loadState(true));
-}catch(e){}
 
 const requested=new URL(location.href).searchParams.get("screen");
 if(["home","admin","operations","driver","dashboard","parent","documents"].includes(requested))G10.currentScreen=requested;
-window.addEventListener("DOMContentLoaded",()=>G10.loadState(true).then(()=>openScreen(G10.currentScreen)));
+window.addEventListener("DOMContentLoaded",async()=>{
+  await G10Spark.start();
+  await G10.loadState(true);
+  await openScreen(G10.currentScreen);
+});

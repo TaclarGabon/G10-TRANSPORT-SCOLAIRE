@@ -1,0 +1,37 @@
+name: Firebase Spark migration checks
+
+on:
+  push:
+    branches: [firebase-migration]
+  pull_request:
+    branches: [main]
+
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Check JSON files
+        run: |
+          node -e "JSON.parse(require('fs').readFileSync('firebase.json','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('.firebaserc','utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync('firebase/database.rules.json','utf8'))"
+
+      - name: Check frontend JavaScript syntax
+        run: |
+          for f in public/*.js; do node --check "$f"; done
+
+      - name: Verify pilot uses Spark architecture
+        run: |
+          if grep -RniE "hatchable|__HATCHABLE__|/api/hero-image|cloudfunctions\.net|firebase-firestore" public; then
+            echo "Legacy Hatchable / Blaze / Firestore runtime reference found."
+            exit 1
+          fi
+          grep -q "firebase-database-compat" public/index.html
+          grep -q "signInAnonymously" public/spark-api.js
